@@ -2,12 +2,13 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Shuffle, Edit3, Upload, X, Move } from "lucide-react"
+import DataStatus from "@/components/data-status"
 
 type SkillLevel = "good" | "average" | "weak"
 
@@ -35,6 +36,9 @@ const skillLabels = {
   average: "Trung bình",
   weak: "Yếu",
 }
+
+// Thêm sau các constant definitions, trước component function
+const STORAGE_KEY = "football-lineup-data"
 
 // Default positions for 2-3-1 formation
 const defaultPositions = {
@@ -67,6 +71,54 @@ export default function FootballLineup() {
   const [editingPlayer, setEditingPlayer] = useState<{ teamIndex: number; playerIndex: number } | null>(null)
   const [draggedPlayer, setDraggedPlayer] = useState<{ teamIndex: number; playerIndex: number } | null>(null)
   const fieldRef = useRef<HTMLDivElement>(null)
+
+  // Thêm các functions này vào trong component, sau các state declarations:
+
+  const saveToLocalStorage = (data: Player[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    } catch (error) {
+      console.error("Không thể lưu dữ liệu:", error)
+    }
+  }
+
+  const loadFromLocalStorage = (): Player[] | null => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch (error) {
+      console.error("Không thể tải dữ liệu:", error)
+    }
+    return null
+  }
+
+  const clearLocalStorage = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+      setPlayers(Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "average" as SkillLevel })))
+    } catch (error) {
+      console.error("Không thể xóa dữ liệu:", error)
+    }
+  }
+
+  // Thêm useEffect để load dữ liệu khi component mount:
+  useEffect(() => {
+    const savedData = loadFromLocalStorage()
+    if (savedData && savedData.length === 14) {
+      setPlayers(savedData)
+    }
+  }, [])
+
+  // Thêm useEffect để save dữ liệu khi players thay đổi:
+  useEffect(() => {
+    // Chỉ save nếu có ít nhất 1 cầu thủ có tên
+    const hasData = players.some((player) => player.name.trim() !== "")
+    if (hasData) {
+      saveToLocalStorage(players)
+    }
+  }, [players])
 
   const updatePlayer = (index: number, field: keyof Player, value: string) => {
     const newPlayers = [...players]
@@ -371,6 +423,20 @@ export default function FootballLineup() {
     )
   }
 
+  const handleImportData = (importedPlayers: Player[]) => {
+    setPlayers(importedPlayers)
+  }
+
+  const handleExportData = () => {
+    // Function này sẽ được handle bởi DataStatus component
+  }
+
+  const handleClearAllData = () => {
+    if (confirm("Bạn có chắc muốn xóa tất cả dữ liệu đã lưu?")) {
+      clearLocalStorage()
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-400 to-green-600 py-8">
       <div className="container mx-auto px-4">
@@ -465,12 +531,21 @@ export default function FootballLineup() {
               >
                 <Shuffle className="w-6 h-6 mr-3" />🏆 Sắp Xếp Đội Hình Ngay!
               </Button>
+              <div className="flex justify-center gap-4 mt-4"></div>
             </div>
+
+            <DataStatus
+              players={players}
+              onImportData={handleImportData}
+              onExportData={handleExportData}
+              onClearData={handleClearAllData}
+            />
 
             <div className="mt-6 text-center text-sm text-gray-600">
               <p>💡 Hệ thống sẽ tự động cân bằng trình độ giữa hai đội để trận đấu thêm hấp dẫn!</p>
               <p>📸 Click vào biểu tượng upload để thêm avatar cho từng cầu thủ</p>
               <p>🖱️ Sau khi sắp xếp, bạn có thể kéo thả cầu thủ để thay đổi vị trí!</p>
+              <p>💾 Dữ liệu sẽ được tự động lưu và khôi phục khi bạn quay lại trang</p>
             </div>
           </CardContent>
         </Card>
