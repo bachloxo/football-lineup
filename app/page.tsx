@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Shuffle, Edit3, Upload, X, Move } from "lucide-react"
+import { Users, Shuffle, Edit3, Upload, X, Move, Camera } from "lucide-react"
 import DataStatus from "@/components/data-status"
+import html2canvas from "html2canvas"
 
 type SkillLevel = "good" | "average" | "weak"
 
@@ -70,6 +71,7 @@ export default function FootballLineup() {
   const [showLineup, setShowLineup] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState<{ teamIndex: number; playerIndex: number } | null>(null)
   const [draggedPlayer, setDraggedPlayer] = useState<{ teamIndex: number; playerIndex: number } | null>(null)
+  const [exportingImage, setExportingImage] = useState(false)
   const fieldRef = useRef<HTMLDivElement>(null)
 
   // Thêm các functions này vào trong component, sau các state declarations:
@@ -229,6 +231,43 @@ export default function FootballLineup() {
     setDraggedPlayer(null)
   }
 
+  const exportFieldAsImage = async () => {
+    if (!fieldRef.current) return
+
+    try {
+      setExportingImage(true)
+
+      // Tạm thời ẩn các tooltip và nút khi export
+      const field = fieldRef.current
+      field.classList.add("exporting")
+
+      const canvas = await html2canvas(field, {
+        backgroundColor: null,
+        scale: 2, // Tăng độ phân giải
+        logging: false,
+        allowTaint: true,
+        useCORS: true,
+      })
+
+      // Khôi phục lại các class sau khi đã render xong
+      field.classList.remove("exporting")
+
+      // Tạo link download
+      const image = canvas.toDataURL("image/png")
+      const link = document.createElement("a")
+      link.href = image
+      link.download = `doi-hinh-bong-da-${new Date().toISOString().split("T")[0]}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error("Lỗi khi xuất hình ảnh:", error)
+      alert("Có lỗi khi xuất hình ảnh. Vui lòng thử lại!")
+    } finally {
+      setExportingImage(false)
+    }
+  }
+
   const FootballField = () => (
     <svg className="absolute inset-0 w-full h-full" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
       {/* Field background */}
@@ -341,12 +380,12 @@ export default function FootballLineup() {
         </div>
 
         {/* Player name tooltip */}
-        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs font-medium text-white bg-black bg-opacity-70 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs font-medium text-white bg-black bg-opacity-70 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap export-hide">
           {player.name}
         </div>
 
         {/* Edit and move icons */}
-        <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity export-hide">
           <Edit3
             className="w-4 h-4 text-white bg-gray-600 rounded-full p-1 cursor-pointer hover:bg-gray-700"
             onClick={(e) => {
@@ -376,10 +415,29 @@ export default function FootballLineup() {
                 </div>
               ))}
             </div>
-            <Button onClick={resetForm} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold">
-              <Shuffle className="w-4 h-4 mr-2" />
-              Sắp xếp lại
-            </Button>
+            <div className="flex justify-center gap-4">
+              <Button onClick={resetForm} className="bg-yellow-500 hover:bg-yellow-600 text-black font-bold">
+                <Shuffle className="w-4 h-4 mr-2" />
+                Sắp xếp lại
+              </Button>
+              <Button
+                onClick={exportFieldAsImage}
+                disabled={exportingImage}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold"
+              >
+                {exportingImage ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    Đang xuất...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-4 h-4 mr-2" />
+                    Xuất hình ảnh
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Football field with drag & drop */}
@@ -405,18 +463,13 @@ export default function FootballLineup() {
                   />
                 )),
               )}
-
-              {/* Formation label */}
-              <div className="absolute bottom-4 left-4 text-white text-sm font-bold bg-black bg-opacity-50 px-3 py-1 rounded">
-                Sơ đồ: 2-3-1 (Kéo thả để di chuyển cầu thủ)
-              </div>
             </div>
           </div>
 
           <div className="text-center mt-6 text-white text-sm drop-shadow">
             <p>🖱️ Kéo thả cầu thủ để thay đổi vị trí trên sân</p>
             <p>✏️ Nhấp vào biểu tượng chỉnh sửa để thay đổi tên cầu thủ</p>
-            <p>📸 Avatar cầu thủ sẽ hiển thị thay cho chấm tròn màu</p>
+            <p>📸 Nhấn "Xuất hình ảnh" để lưu đội hình thành file PNG</p>
           </div>
         </div>
       </div>
