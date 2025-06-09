@@ -2,12 +2,12 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Shuffle, Edit3, Upload, X } from "lucide-react"
+import { Users, Shuffle, Edit3, Upload, X, Move } from "lucide-react"
 
 type SkillLevel = "good" | "average" | "weak"
 
@@ -15,6 +15,7 @@ interface Player {
   name: string
   skill: SkillLevel
   avatar?: string
+  position?: { x: number; y: number }
 }
 
 interface Team {
@@ -35,6 +36,28 @@ const skillLabels = {
   weak: "Yếu",
 }
 
+// Default positions for 2-3-1 formation
+const defaultPositions = {
+  team1: [
+    { x: 80, y: 300 }, // GK
+    { x: 160, y: 200 }, // Defender 1
+    { x: 160, y: 400 }, // Defender 2
+    { x: 280, y: 150 }, // Midfielder 1
+    { x: 280, y: 300 }, // Midfielder 2
+    { x: 280, y: 450 }, // Midfielder 3
+    { x: 400, y: 300 }, // Forward
+  ],
+  team2: [
+    { x: 720, y: 300 }, // GK
+    { x: 640, y: 200 }, // Defender 1
+    { x: 640, y: 400 }, // Defender 2
+    { x: 520, y: 150 }, // Midfielder 1
+    { x: 520, y: 300 }, // Midfielder 2
+    { x: 520, y: 450 }, // Midfielder 3
+    { x: 400, y: 300 }, // Forward
+  ],
+}
+
 export default function FootballLineup() {
   const [players, setPlayers] = useState<Player[]>(
     Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "average" as SkillLevel })),
@@ -42,6 +65,8 @@ export default function FootballLineup() {
   const [teams, setTeams] = useState<Team[]>([])
   const [showLineup, setShowLineup] = useState(false)
   const [editingPlayer, setEditingPlayer] = useState<{ teamIndex: number; playerIndex: number } | null>(null)
+  const [draggedPlayer, setDraggedPlayer] = useState<{ teamIndex: number; playerIndex: number } | null>(null)
+  const fieldRef = useRef<HTMLDivElement>(null)
 
   const updatePlayer = (index: number, field: keyof Player, value: string) => {
     const newPlayers = [...players]
@@ -84,12 +109,18 @@ export default function FootballLineup() {
     let team2Skill = 0
 
     // Phân chia cầu thủ để cân bằng trình độ
-    sortedPlayers.forEach((player) => {
+    sortedPlayers.forEach((player, index) => {
       if (team1.length < 7 && (team2.length === 7 || team1Skill <= team2Skill)) {
-        team1.push(player)
+        team1.push({
+          ...player,
+          position: defaultPositions.team1[team1.length],
+        })
         team1Skill += skillValues[player.skill]
       } else {
-        team2.push(player)
+        team2.push({
+          ...player,
+          position: defaultPositions.team2[team2.length],
+        })
         team2Skill += skillValues[player.skill]
       }
     })
@@ -108,32 +139,117 @@ export default function FootballLineup() {
     setEditingPlayer(null)
   }
 
+  const updatePlayerPosition = (teamIndex: number, playerIndex: number, newPosition: { x: number; y: number }) => {
+    const newTeams = [...teams]
+    newTeams[teamIndex].players[playerIndex].position = newPosition
+    setTeams(newTeams)
+  }
+
   const resetForm = () => {
     setShowLineup(false)
     setTeams([])
     setEditingPlayer(null)
   }
 
+  const handleMouseDown = (teamIndex: number, playerIndex: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    setDraggedPlayer({ teamIndex, playerIndex })
+  }
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!draggedPlayer || !fieldRef.current) return
+
+    const rect = fieldRef.current.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+
+    // Constrain to field boundaries
+    const constrainedX = Math.max(40, Math.min(x - 32, rect.width - 72))
+    const constrainedY = Math.max(40, Math.min(y - 32, rect.height - 72))
+
+    updatePlayerPosition(draggedPlayer.teamIndex, draggedPlayer.playerIndex, {
+      x: constrainedX,
+      y: constrainedY,
+    })
+  }
+
+  const handleMouseUp = () => {
+    setDraggedPlayer(null)
+  }
+
+  const FootballField = () => (
+    <svg className="absolute inset-0 w-full h-full" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet">
+      {/* Field background */}
+      <defs>
+        <pattern id="grass" patternUnits="userSpaceOnUse" width="4" height="4">
+          <rect width="4" height="4" fill="#2d5a2d" />
+          <rect width="2" height="2" fill="#3d6a3d" />
+          <rect x="2" y="2" width="2" height="2" fill="#3d6a3d" />
+        </pattern>
+      </defs>
+      <rect width="800" height="600" fill="url(#grass)" />
+
+      {/* Field outline */}
+      <rect x="40" y="40" width="720" height="520" fill="none" stroke="white" strokeWidth="3" />
+
+      {/* Center line */}
+      <line x1="400" y1="40" x2="400" y2="560" stroke="white" strokeWidth="3" />
+
+      {/* Center circle */}
+      <circle cx="400" cy="300" r="80" fill="none" stroke="white" strokeWidth="3" />
+      <circle cx="400" cy="300" r="2" fill="white" />
+
+      {/* Left penalty area */}
+      <rect x="40" y="180" width="120" height="240" fill="none" stroke="white" strokeWidth="3" />
+      <rect x="40" y="240" width="40" height="120" fill="none" stroke="white" strokeWidth="3" />
+      <circle cx="160" cy="300" r="80" fill="none" stroke="white" strokeWidth="3" />
+      <circle cx="120" cy="300" r="2" fill="white" />
+
+      {/* Right penalty area */}
+      <rect x="640" y="180" width="120" height="240" fill="none" stroke="white" strokeWidth="3" />
+      <rect x="720" y="240" width="40" height="120" fill="none" stroke="white" strokeWidth="3" />
+      <circle cx="640" cy="300" r="80" fill="none" stroke="white" strokeWidth="3" />
+      <circle cx="680" cy="300" r="2" fill="white" />
+
+      {/* Corner arcs */}
+      <path d="M 40 40 Q 50 40 50 50" fill="none" stroke="white" strokeWidth="2" />
+      <path d="M 760 40 Q 750 40 750 50" fill="none" stroke="white" strokeWidth="2" />
+      <path d="M 40 560 Q 50 560 50 550" fill="none" stroke="white" strokeWidth="2" />
+      <path d="M 760 560 Q 750 560 750 550" fill="none" stroke="white" strokeWidth="2" />
+
+      {/* Goals */}
+      <rect x="35" y="270" width="10" height="60" fill="none" stroke="white" strokeWidth="2" />
+      <rect x="755" y="270" width="10" height="60" fill="none" stroke="white" strokeWidth="2" />
+    </svg>
+  )
+
   const PlayerPosition = ({
     player,
     teamIndex,
     playerIndex,
-    position,
   }: {
     player: Player
     teamIndex: number
     playerIndex: number
-    position: string
   }) => {
     const isEditing = editingPlayer?.teamIndex === teamIndex && editingPlayer?.playerIndex === playerIndex
+    const isDragging = draggedPlayer?.teamIndex === teamIndex && draggedPlayer?.playerIndex === playerIndex
 
     return (
-      <div className={`relative group ${position}`}>
+      <div
+        className={`absolute cursor-move group transition-all duration-200 ${isDragging ? "scale-110 z-50" : "hover:scale-105"}`}
+        style={{
+          left: `${player.position?.x || 0}px`,
+          top: `${player.position?.y || 0}px`,
+          transform: "translate(-50%, -50%)",
+        }}
+        onMouseDown={(e) => handleMouseDown(teamIndex, playerIndex, e)}
+      >
         <div
           className={`
-          w-16 h-16 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg cursor-pointer overflow-hidden
+          w-16 h-16 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-lg overflow-hidden
           ${teamIndex === 0 ? "border-4 border-blue-500" : "border-4 border-red-500"}
-          transition-all duration-200 hover:scale-110
+          ${isDragging ? "shadow-2xl" : "shadow-lg"}
         `}
         >
           {player.avatar ? (
@@ -141,6 +257,7 @@ export default function FootballLineup() {
               src={player.avatar || "/placeholder.svg"}
               alt={player.name}
               className="w-full h-full object-cover rounded-full"
+              draggable={false}
             />
           ) : (
             <div
@@ -170,33 +287,30 @@ export default function FootballLineup() {
             </div>
           )}
         </div>
+
+        {/* Player name tooltip */}
         <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs font-medium text-white bg-black bg-opacity-70 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
           {player.name}
         </div>
-        <Edit3
-          className="absolute -top-2 -right-2 w-4 h-4 text-white bg-gray-600 rounded-full p-1 opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity"
-          onClick={() => setEditingPlayer({ teamIndex, playerIndex })}
-        />
+
+        {/* Edit and move icons */}
+        <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Edit3
+            className="w-4 h-4 text-white bg-gray-600 rounded-full p-1 cursor-pointer hover:bg-gray-700"
+            onClick={(e) => {
+              e.stopPropagation()
+              setEditingPlayer({ teamIndex, playerIndex })
+            }}
+          />
+          <Move className="w-4 h-4 text-white bg-green-600 rounded-full p-1 cursor-move hover:bg-green-700" />
+        </div>
       </div>
     )
   }
 
   if (showLineup) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-400 to-green-600 relative overflow-hidden">
-        {/* Football field background */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="w-full h-full bg-green-500 relative">
-            {/* Field lines */}
-            <div className="absolute inset-0">
-              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white transform -translate-y-1/2"></div>
-              <div className="absolute top-1/2 left-1/2 w-32 h-32 border-2 border-white rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
-              <div className="absolute top-0 left-1/4 right-1/4 h-20 border-2 border-white border-b-0"></div>
-              <div className="absolute bottom-0 left-1/4 right-1/4 h-20 border-2 border-white border-t-0"></div>
-            </div>
-          </div>
-        </div>
-
+      <div className="min-h-screen bg-green-800 relative overflow-hidden">
         <div className="relative z-10 container mx-auto px-4 py-8">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">Đội Hình Đã Sắp Xếp</h1>
@@ -216,131 +330,40 @@ export default function FootballLineup() {
             </Button>
           </div>
 
-          {/* Football field layout with corrected 2-3-1 formation */}
+          {/* Football field with drag & drop */}
           <div className="max-w-6xl mx-auto">
-            <div className="bg-green-600 bg-opacity-60 rounded-lg p-8 relative min-h-[800px] backdrop-blur-sm">
-              {/* Center line */}
-              <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white transform -translate-x-1/2 opacity-70"></div>
+            <div
+              ref={fieldRef}
+              className="relative w-full h-[600px] bg-green-600 rounded-lg shadow-2xl overflow-hidden"
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
+              {/* Football field background */}
+              <FootballField />
 
-              {/* Team 1 (Left side) - Formation 2-3-1 */}
-              <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-                <div className="relative w-[400px] h-[600px]">
-                  {/* Goalkeeper */}
+              {/* Players */}
+              {teams.map((team, teamIndex) =>
+                team.players.map((player, playerIndex) => (
                   <PlayerPosition
-                    player={teams[0]?.players[0]}
-                    teamIndex={0}
-                    playerIndex={0}
-                    position="absolute left-8 top-1/2 transform -translate-y-1/2"
+                    key={`${teamIndex}-${playerIndex}`}
+                    player={player}
+                    teamIndex={teamIndex}
+                    playerIndex={playerIndex}
                   />
+                )),
+              )}
 
-                  {/* 2 Defenders */}
-                  <PlayerPosition
-                    player={teams[0]?.players[1]}
-                    teamIndex={0}
-                    playerIndex={1}
-                    position="absolute left-24 top-[120px]"
-                  />
-                  <PlayerPosition
-                    player={teams[0]?.players[2]}
-                    teamIndex={0}
-                    playerIndex={2}
-                    position="absolute left-24 bottom-[120px]"
-                  />
-
-                  {/* 3 Midfielders */}
-                  <PlayerPosition
-                    player={teams[0]?.players[3]}
-                    teamIndex={0}
-                    playerIndex={3}
-                    position="absolute left-48 top-[80px]"
-                  />
-                  <PlayerPosition
-                    player={teams[0]?.players[4]}
-                    teamIndex={0}
-                    playerIndex={4}
-                    position="absolute left-48 top-1/2 transform -translate-y-1/2"
-                  />
-                  <PlayerPosition
-                    player={teams[0]?.players[5]}
-                    teamIndex={0}
-                    playerIndex={5}
-                    position="absolute left-48 bottom-[80px]"
-                  />
-
-                  {/* 1 Forward */}
-                  <PlayerPosition
-                    player={teams[0]?.players[6]}
-                    teamIndex={0}
-                    playerIndex={6}
-                    position="absolute left-72 top-1/2 transform -translate-y-1/2"
-                  />
-                </div>
-              </div>
-
-              {/* Team 2 (Right side) - Formation 1-3-2 (mirrored) */}
-              <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                <div className="relative w-[400px] h-[600px]">
-                  {/* Goalkeeper */}
-                  <PlayerPosition
-                    player={teams[1]?.players[0]}
-                    teamIndex={1}
-                    playerIndex={0}
-                    position="absolute right-8 top-1/2 transform -translate-y-1/2"
-                  />
-
-                  {/* 2 Defenders */}
-                  <PlayerPosition
-                    player={teams[1]?.players[1]}
-                    teamIndex={1}
-                    playerIndex={1}
-                    position="absolute right-24 top-[120px]"
-                  />
-                  <PlayerPosition
-                    player={teams[1]?.players[2]}
-                    teamIndex={1}
-                    playerIndex={2}
-                    position="absolute right-24 bottom-[120px]"
-                  />
-
-                  {/* 3 Midfielders */}
-                  <PlayerPosition
-                    player={teams[1]?.players[3]}
-                    teamIndex={1}
-                    playerIndex={3}
-                    position="absolute right-48 top-[80px]"
-                  />
-                  <PlayerPosition
-                    player={teams[1]?.players[4]}
-                    teamIndex={1}
-                    playerIndex={4}
-                    position="absolute right-48 top-1/2 transform -translate-y-1/2"
-                  />
-                  <PlayerPosition
-                    player={teams[1]?.players[5]}
-                    teamIndex={1}
-                    playerIndex={5}
-                    position="absolute right-48 bottom-[80px]"
-                  />
-
-                  {/* 1 Forward */}
-                  <PlayerPosition
-                    player={teams[1]?.players[6]}
-                    teamIndex={1}
-                    playerIndex={6}
-                    position="absolute right-72 top-1/2 transform -translate-y-1/2"
-                  />
-                </div>
-              </div>
-
-              {/* Formation labels */}
+              {/* Formation label */}
               <div className="absolute bottom-4 left-4 text-white text-sm font-bold bg-black bg-opacity-50 px-3 py-1 rounded">
-                Sơ đồ: 2-3-1
+                Sơ đồ: 2-3-1 (Kéo thả để di chuyển cầu thủ)
               </div>
             </div>
           </div>
 
           <div className="text-center mt-6 text-white text-sm drop-shadow">
-            <p>💡 Nhấp vào biểu tượng chỉnh sửa để thay đổi tên cầu thủ</p>
+            <p>🖱️ Kéo thả cầu thủ để thay đổi vị trí trên sân</p>
+            <p>✏️ Nhấp vào biểu tượng chỉnh sửa để thay đổi tên cầu thủ</p>
             <p>📸 Avatar cầu thủ sẽ hiển thị thay cho chấm tròn màu</p>
           </div>
         </div>
@@ -447,6 +470,7 @@ export default function FootballLineup() {
             <div className="mt-6 text-center text-sm text-gray-600">
               <p>💡 Hệ thống sẽ tự động cân bằng trình độ giữa hai đội để trận đấu thêm hấp dẫn!</p>
               <p>📸 Click vào biểu tượng upload để thêm avatar cho từng cầu thủ</p>
+              <p>🖱️ Sau khi sắp xếp, bạn có thể kéo thả cầu thủ để thay đổi vị trí!</p>
             </div>
           </CardContent>
         </Card>
