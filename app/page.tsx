@@ -279,30 +279,27 @@ export default function FootballLineup() {
       // Thêm tiêu đề với tên đội
       const header = document.createElement("div")
       header.style.cssText = `
-        text-align: center;
-        margin-bottom: 30px;
-        color: white;
-        font-family: system-ui, -apple-system, sans-serif;
-      `
+  text-align: center;
+  margin-bottom: 30px;
+  color: white;
+  font-family: system-ui, -apple-system, sans-serif;
+`
       header.innerHTML = `
-        <h1 style="font-size: 32px; font-weight: bold; margin-bottom: 20px; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
-          Đội Hình Bóng Đá
-        </h1>
-        <div style="display: flex; justify-content: center; gap: 60px;">
-          <div style="text-align: center;">
-            <h2 style="font-size: 24px; font-weight: bold; color: #93c5fd; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-              ${teams[0]?.name || "Đội 1"}
-            </h2>
-            <p style="font-size: 16px; margin-top: 5px;">Tổng điểm: ${teams[0]?.totalSkill || 0}</p>
-          </div>
-          <div style="text-align: center;">
-            <h2 style="font-size: 24px; font-weight: bold; color: #fca5a5; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-              ${teams[1]?.name || "Đội 2"}
-            </h2>
-            <p style="font-size: 16px; margin-top: 5px;">Tổng điểm: ${teams[1]?.totalSkill || 0}</p>
-          </div>
-        </div>
-      `
+  <div style="display: flex; justify-content: center; gap: 60px;">
+    <div style="text-align: center;">
+      <h2 style="font-size: 24px; font-weight: bold; color: #93c5fd; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+        ${teams[0]?.name || "Đội 1"}
+      </h2>
+      <p style="font-size: 16px; margin-top: 5px;">Tổng điểm: ${teams[0]?.totalSkill || 0}</p>
+    </div>
+    <div style="text-align: center;">
+      <h2 style="font-size: 24px; font-weight: bold; color: #fca5a5; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+        ${teams[1]?.name || "Đội 2"}
+      </h2>
+      <p style="font-size: 16px; margin-top: 5px;">Tổng điểm: ${teams[1]?.totalSkill || 0}</p>
+    </div>
+  </div>
+`
 
       // Clone sân bóng
       const fieldClone = fieldRef.current.cloneNode(true) as HTMLElement
@@ -453,7 +450,12 @@ export default function FootballLineup() {
           )}
         </div>
 
-        {/* Player name tooltip */}
+        {/* Player name - always visible */}
+        <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 text-xs font-medium text-white bg-black bg-opacity-70 px-2 py-1 rounded whitespace-nowrap">
+          {player.name}
+        </div>
+
+        {/* Player name tooltip for hover (export-hide) */}
         <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs font-medium text-white bg-black bg-opacity-70 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap export-hide">
           {player.name}
         </div>
@@ -524,7 +526,7 @@ export default function FootballLineup() {
           <div className="max-w-6xl mx-auto">
             <div
               ref={fieldRef}
-              className="relative w-full h-[600px] bg-green-600 rounded-lg shadow-2xl overflow-hidden"
+              className="relative w-full h-[650px] bg-green-600 rounded-lg shadow-2xl overflow-hidden"
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
