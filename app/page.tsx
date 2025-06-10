@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Users, Shuffle, Edit3, Upload, X, Move, Camera } from "lucide-react"
+import { Users, Shuffle, Edit3, Upload, X, Move, Camera, ArrowLeftRight } from "lucide-react"
 import DataStatus from "@/components/data-status"
 import html2canvas from "html2canvas"
 
@@ -76,6 +76,10 @@ export default function FootballLineup() {
   const [exportingImage, setExportingImage] = useState(false)
   const fieldRef = useRef<HTMLDivElement>(null)
   const [teamNames, setTeamNames] = useState({ team1: "Đội Xanh", team2: "Đội Đỏ" })
+
+  // Thêm state cho drag & drop trong form
+  const [draggedFormPlayer, setDraggedFormPlayer] = useState<number | null>(null)
+  const [dragOverColumn, setDragOverColumn] = useState<"left" | "right" | null>(null)
 
   // Thêm các functions này vào trong component, sau các state declarations:
 
@@ -167,6 +171,93 @@ export default function FootballLineup() {
     setPlayers(newPlayers)
   }
 
+  // Thêm functions cho drag & drop trong form
+  const handleFormDragStart = (e: React.DragEvent, playerIndex: number) => {
+    setDraggedFormPlayer(playerIndex)
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  const handleFormDragEnd = () => {
+    setDraggedFormPlayer(null)
+    setDragOverColumn(null)
+  }
+
+  const handleColumnDragOver = (e: React.DragEvent, column: "left" | "right") => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setDragOverColumn(column)
+  }
+
+  const handleColumnDragLeave = () => {
+    setDragOverColumn(null)
+  }
+
+  const handleColumnDrop = (e: React.DragEvent, targetColumn: "left" | "right") => {
+    e.preventDefault()
+    if (draggedFormPlayer === null) return
+
+    const draggedIndex = draggedFormPlayer
+    const isCurrentlyInLeftColumn = draggedIndex < 7
+    const shouldMoveToLeftColumn = targetColumn === "left"
+
+    // Nếu đã ở đúng cột thì không làm gì
+    if ((isCurrentlyInLeftColumn && shouldMoveToLeftColumn) || (!isCurrentlyInLeftColumn && !shouldMoveToLeftColumn)) {
+      setDraggedFormPlayer(null)
+      setDragOverColumn(null)
+      return
+    }
+
+    // Tìm vị trí trống trong cột đích
+    let targetIndex = -1
+    if (shouldMoveToLeftColumn) {
+      // Tìm vị trí trống trong cột trái (0-6)
+      for (let i = 0; i < 7; i++) {
+        if (!players[i].name.trim()) {
+          targetIndex = i
+          break
+        }
+      }
+      // Nếu không có vị trí trống, tìm vị trí có thể swap
+      if (targetIndex === -1) {
+        for (let i = 0; i < 7; i++) {
+          if (i !== draggedIndex) {
+            targetIndex = i
+            break
+          }
+        }
+      }
+    } else {
+      // Tìm vị trí trống trong cột phải (7-13)
+      for (let i = 7; i < 14; i++) {
+        if (!players[i].name.trim()) {
+          targetIndex = i
+          break
+        }
+      }
+      // Nếu không có vị trí trống, tìm vị trí có thể swap
+      if (targetIndex === -1) {
+        for (let i = 7; i < 14; i++) {
+          if (i !== draggedIndex) {
+            targetIndex = i
+            break
+          }
+        }
+      }
+    }
+
+    if (targetIndex !== -1) {
+      // Swap players
+      const newPlayers = [...players]
+      const temp = newPlayers[draggedIndex]
+      newPlayers[draggedIndex] = newPlayers[targetIndex]
+      newPlayers[targetIndex] = temp
+      setPlayers(newPlayers)
+    }
+
+    setDraggedFormPlayer(null)
+    setDragOverColumn(null)
+  }
+
   const balanceTeams = () => {
     const validPlayers = players.filter((p) => p.name.trim() !== "")
     if (validPlayers.length < 14) {
@@ -179,21 +270,19 @@ export default function FootballLineup() {
     let team1Skill = 0
     let team2Skill = 0
 
-    // Bước 1: Xử lý các cầu thủ được fix trước
-    validPlayers.forEach((player, originalIndex) => {
-      if (player.isFixed) {
-        // Cầu thủ ở vị trí lẻ (1,3,5,7,9,11,13) -> đội 1 (xanh)
-        // Cầu thủ ở vị trí chẵn (2,4,6,8,10,12,14) -> đội 2 (đỏ)
-        const playerPosition = players.findIndex((p) => p === player)
-        const isOddPosition = (playerPosition + 1) % 2 === 1
+    // Bước 1: Xử lý các cầu thủ được fix trước dựa trên vị trí hiện tại
+    players.forEach((player, index) => {
+      if (player.name.trim() && player.isFixed) {
+        // Cầu thủ ở cột trái (0-6) -> đội 1, cột phải (7-13) -> đội 2
+        const isInLeftColumn = index < 7
 
-        if (isOddPosition && team1.length < 7) {
+        if (isInLeftColumn && team1.length < 7) {
           team1.push({
             ...player,
             position: defaultPositions.team1[team1.length],
           })
           team1Skill += skillValues[player.skill]
-        } else if (!isOddPosition && team2.length < 7) {
+        } else if (!isInLeftColumn && team2.length < 7) {
           team2.push({
             ...player,
             position: defaultPositions.team2[team2.length],
@@ -204,7 +293,7 @@ export default function FootballLineup() {
     })
 
     // Bước 2: Sắp xếp các cầu thủ không được fix
-    const unFixedPlayers = validPlayers.filter((player) => !player.isFixed)
+    const unFixedPlayers = players.filter((player, index) => player.name.trim() && !player.isFixed)
     const sortedUnFixedPlayers = [...unFixedPlayers].sort((a, b) => skillValues[b.skill] - skillValues[a.skill])
 
     // Bước 3: Phân chia các cầu thủ còn lại để cân bằng trình độ
@@ -624,9 +713,23 @@ export default function FootballLineup() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 bg-white">
+            <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <p className="text-sm text-yellow-800 text-center">
+                <ArrowLeftRight className="w-4 h-4 inline mr-1" />
+                <strong>Kéo thả cầu thủ</strong> giữa các cột để chuyển đội. Cầu thủ sẽ được sắp xếp theo cột hiện tại.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {/* Cột bên trái */}
-              <div className="space-y-4">
+              <div
+                className={`space-y-4 p-4 rounded-lg border-2 transition-all ${
+                  dragOverColumn === "left" ? "border-blue-400 bg-blue-50 shadow-lg" : "border-blue-200 bg-blue-25"
+                }`}
+                onDragOver={(e) => handleColumnDragOver(e, "left")}
+                onDragLeave={handleColumnDragLeave}
+                onDrop={(e) => handleColumnDrop(e, "left")}
+              >
                 <div className="text-center p-3 bg-blue-50 rounded-lg border-2 border-blue-200">
                   <h3 className="text-lg font-bold text-blue-700 mb-1">Đội A</h3>
                   <p className="text-sm text-blue-600">Cầu thủ ở cột này sẽ cùng đội nếu được fixed</p>
@@ -634,9 +737,12 @@ export default function FootballLineup() {
                 {players.slice(0, 7).map((player, index) => (
                   <div
                     key={index}
-                    className={`flex gap-3 items-center p-4 rounded-lg border-2 transition-all ${
+                    draggable
+                    onDragStart={(e) => handleFormDragStart(e, index)}
+                    onDragEnd={handleFormDragEnd}
+                    className={`flex gap-3 items-center p-4 rounded-lg border-2 transition-all cursor-move ${
                       player.isFixed ? "bg-blue-50 border-blue-300 shadow-md" : "bg-green-50 border-green-200"
-                    }`}
+                    } ${draggedFormPlayer === index ? "opacity-50 scale-95" : "hover:shadow-md"}`}
                   >
                     <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
                       {index + 1}
@@ -717,7 +823,14 @@ export default function FootballLineup() {
               </div>
 
               {/* Cột bên phải */}
-              <div className="space-y-4">
+              <div
+                className={`space-y-4 p-4 rounded-lg border-2 transition-all ${
+                  dragOverColumn === "right" ? "border-red-400 bg-red-50 shadow-lg" : "border-red-200 bg-red-25"
+                }`}
+                onDragOver={(e) => handleColumnDragOver(e, "right")}
+                onDragLeave={handleColumnDragLeave}
+                onDrop={(e) => handleColumnDrop(e, "right")}
+              >
                 <div className="text-center p-3 bg-red-50 rounded-lg border-2 border-red-200">
                   <h3 className="text-lg font-bold text-red-700 mb-1">Đội B</h3>
                   <p className="text-sm text-red-600">Cầu thủ ở cột này sẽ cùng đội nếu được fixed</p>
@@ -727,9 +840,12 @@ export default function FootballLineup() {
                   return (
                     <div
                       key={actualIndex}
-                      className={`flex gap-3 items-center p-4 rounded-lg border-2 transition-all ${
+                      draggable
+                      onDragStart={(e) => handleFormDragStart(e, actualIndex)}
+                      onDragEnd={handleFormDragEnd}
+                      className={`flex gap-3 items-center p-4 rounded-lg border-2 transition-all cursor-move ${
                         player.isFixed ? "bg-red-50 border-red-300 shadow-md" : "bg-green-50 border-green-200"
-                      }`}
+                      } ${draggedFormPlayer === actualIndex ? "opacity-50 scale-95" : "hover:shadow-md"}`}
                     >
                       <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
                         {actualIndex + 1}
@@ -834,6 +950,7 @@ export default function FootballLineup() {
 
             <div className="mt-6 text-center text-sm text-gray-600">
               <p>💡 Hệ thống sẽ tự động cân bằng trình độ giữa hai đội để trận đấu thêm hấp dẫn!</p>
+              <p>🔄 Kéo thả cầu thủ giữa các cột để chuyển đội trước khi sắp xếp</p>
               <p>📌 Sử dụng checkbox "Fixed" để cố định cầu thủ vào đội mong muốn trước khi sắp xếp</p>
               <p>📸 Click vào biểu tượng upload để thêm avatar cho từng cầu thủ</p>
               <p>🖱️ Sau khi sắp xếp, bạn có thể kéo thả cầu thủ để thay đổi vị trí!</p>
