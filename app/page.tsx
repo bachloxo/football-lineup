@@ -67,7 +67,7 @@ const defaultPositions = {
 
 export default function FootballLineup() {
   const [players, setPlayers] = useState<Player[]>(
-    Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "good" as SkillLevel, isFixed: false })),
+    Array.from({ length: 20 }, (_, i) => ({ name: "", skill: "good" as SkillLevel, isFixed: false })),
   )
   const [teams, setTeams] = useState<Team[]>([])
   const [showLineup, setShowLineup] = useState(false)
@@ -102,7 +102,23 @@ export default function FootballLineup() {
         const data = JSON.parse(saved)
         // Backward compatibility
         if (Array.isArray(data)) {
+          // Nếu data cũ có 14 phần tử, mở rộng thành 20
+          if (data.length === 14) {
+            const expandedData = [
+              ...data,
+              ...Array.from({ length: 6 }, () => ({ name: "", skill: "good" as SkillLevel, isFixed: false })),
+            ]
+            return { players: expandedData }
+          }
           return { players: data }
+        }
+        // Nếu players cũ có 14 phần tử, mở rộng thành 20
+        if (data.players && data.players.length === 14) {
+          const expandedPlayers = [
+            ...data.players,
+            ...Array.from({ length: 6 }, () => ({ name: "", skill: "good" as SkillLevel, isFixed: false })),
+          ]
+          return { ...data, players: expandedPlayers }
         }
         return data
       }
@@ -115,7 +131,7 @@ export default function FootballLineup() {
   const clearLocalStorage = () => {
     try {
       localStorage.removeItem(STORAGE_KEY)
-      setPlayers(Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "good" as SkillLevel, isFixed: false })))
+      setPlayers(Array.from({ length: 20 }, (_, i) => ({ name: "", skill: "good" as SkillLevel, isFixed: false })))
     } catch (error) {
       console.error("Không thể xóa dữ liệu:", error)
     }
@@ -124,7 +140,7 @@ export default function FootballLineup() {
   // Thêm useEffect để load dữ liệu khi component mount:
   useEffect(() => {
     const savedData = loadFromLocalStorage()
-    if (savedData?.players && savedData.players.length === 14) {
+    if (savedData?.players) {
       // Ensure backward compatibility by adding isFixed property if it doesn't exist
       const playersWithFixed = savedData.players.map((player) => ({
         ...player,
@@ -197,7 +213,7 @@ export default function FootballLineup() {
     if (draggedFormPlayer === null) return
 
     const draggedIndex = draggedFormPlayer
-    const isCurrentlyInLeftColumn = draggedIndex < 7
+    const isCurrentlyInLeftColumn = draggedIndex < 10
     const shouldMoveToLeftColumn = targetColumn === "left"
 
     // Nếu đã ở đúng cột thì không làm gì
@@ -207,58 +223,34 @@ export default function FootballLineup() {
       return
     }
 
-    // Tìm vị trí đầu tiên trong cột đích để chèn vào
+    // Tìm vị trí trống đầu tiên trong cột đích
     let targetIndex = -1
     if (shouldMoveToLeftColumn) {
-      // Tìm vị trí đầu tiên trong cột trái (0-6)
-      for (let i = 0; i < 7; i++) {
+      // Tìm vị trí trống trong cột trái (0-9)
+      for (let i = 0; i < 10; i++) {
         if (!players[i].name.trim()) {
           targetIndex = i
           break
         }
       }
-      // Nếu không có vị trí trống, chèn vào cuối cột trái
-      if (targetIndex === -1) {
-        targetIndex = 6
-      }
     } else {
-      // Tìm vị trí đầu tiên trong cột phải (7-13)
-      for (let i = 7; i < 14; i++) {
+      // Tìm vị trí trống trong cột phải (10-19)
+      for (let i = 10; i < 20; i++) {
         if (!players[i].name.trim()) {
           targetIndex = i
           break
         }
       }
-      // Nếu không có vị trí trống, chèn vào cuối cột phải
-      if (targetIndex === -1) {
-        targetIndex = 13
-      }
     }
 
-    // Di chuyển player và dịch chuyển các player khác
-    const newPlayers = [...players]
-    const draggedPlayer = newPlayers[draggedIndex]
-
-    // Xóa player khỏi vị trí cũ
-    newPlayers[draggedIndex] = { name: "", skill: "good" as SkillLevel, isFixed: false }
-
-    // Dịch chuyển các player trong cột đích để tạo chỗ
-    if (shouldMoveToLeftColumn) {
-      // Dịch chuyển trong cột trái
-      for (let i = 6; i > targetIndex; i--) {
-        newPlayers[i] = newPlayers[i - 1]
-      }
-    } else {
-      // Dịch chuyển trong cột phải
-      for (let i = 13; i > targetIndex; i--) {
-        newPlayers[i] = newPlayers[i - 1]
-      }
+    if (targetIndex !== -1) {
+      // Swap đơn giản: di chuyển player sang vị trí trống
+      const newPlayers = [...players]
+      newPlayers[targetIndex] = newPlayers[draggedIndex]
+      newPlayers[draggedIndex] = { name: "", skill: "good" as SkillLevel, isFixed: false }
+      setPlayers(newPlayers)
     }
 
-    // Chèn player vào vị trí mới
-    newPlayers[targetIndex] = draggedPlayer
-
-    setPlayers(newPlayers)
     setDraggedFormPlayer(null)
     setDragOverColumn(null)
   }
@@ -271,8 +263,8 @@ export default function FootballLineup() {
     }
 
     // Đếm số lượng cầu thủ ở mỗi cột
-    const leftColumnPlayers = players.slice(0, 7).filter((p) => p.name.trim() !== "")
-    const rightColumnPlayers = players.slice(7, 14).filter((p) => p.name.trim() !== "")
+    const leftColumnPlayers = players.slice(0, 10).filter((p) => p.name.trim() !== "")
+    const rightColumnPlayers = players.slice(10, 20).filter((p) => p.name.trim() !== "")
 
     if (leftColumnPlayers.length !== 7 || rightColumnPlayers.length !== 7) {
       alert(
@@ -286,8 +278,8 @@ export default function FootballLineup() {
     let team1Skill = 0
     let team2Skill = 0
 
-    // Xử lý cầu thủ từ cột trái (Đội A)
-    leftColumnPlayers.forEach((player, index) => {
+    // Xử lý cầu thủ từ cột trái (Đội A) - chỉ lấy 7 người đầu tiên có tên
+    leftColumnPlayers.slice(0, 7).forEach((player, index) => {
       team1.push({
         ...player,
         position: defaultPositions.team1[index],
@@ -295,8 +287,8 @@ export default function FootballLineup() {
       team1Skill += skillValues[player.skill]
     })
 
-    // Xử lý cầu thủ từ cột phải (Đội B)
-    rightColumnPlayers.forEach((player, index) => {
+    // Xử lý cầu thủ từ cột phải (Đội B) - chỉ lấy 7 người đầu tiên có tên
+    rightColumnPlayers.slice(0, 7).forEach((player, index) => {
       team2.push({
         ...player,
         position: defaultPositions.team2[index],
@@ -666,7 +658,16 @@ export default function FootballLineup() {
   }
 
   const handleImportData = (importedPlayers: Player[]) => {
-    setPlayers(importedPlayers)
+    // Nếu import data cũ có 14 phần tử, mở rộng thành 20
+    if (importedPlayers.length === 14) {
+      const expandedData = [
+        ...importedPlayers,
+        ...Array.from({ length: 6 }, () => ({ name: "", skill: "good" as SkillLevel, isFixed: false })),
+      ]
+      setPlayers(expandedData)
+    } else {
+      setPlayers(importedPlayers)
+    }
   }
 
   const handleExportData = () => {
@@ -690,45 +691,49 @@ export default function FootballLineup() {
           <p className="text-xl text-green-100">Tạo đội hình cân bằng và công bằng cho trận đấu của bạn!</p>
         </div>
 
-        <Card className="max-w-5xl mx-auto shadow-2xl border-0">
+        <Card className="max-w-6xl mx-auto shadow-2xl border-0">
           <CardHeader className="bg-white">
             <CardTitle className="text-2xl text-center text-green-700 flex items-center justify-center gap-2">
               <Users className="w-6 h-6" />
-              Nhập Thông Tin 14 Cầu Thủ
+              Nhập Thông Tin Cầu Thủ
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 bg-white">
             <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
               <p className="text-sm text-yellow-800 text-center">
                 <ArrowLeftRight className="w-4 h-4 inline mr-1" />
-                <strong>Kéo thả cầu thủ</strong> giữa các cột để chuyển đội. Cầu thủ sẽ được sắp xếp theo cột hiện tại.
+                <strong>Kéo thả cầu thủ</strong> giữa các cột để chuyển đội. Cần đúng 7 người mỗi đội để sắp xếp.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {/* Cột bên trái */}
               <div
-                className={`space-y-4 p-4 rounded-lg border-2 transition-all ${
+                className={`space-y-3 p-4 rounded-lg border-2 transition-all max-h-[600px] overflow-y-auto ${
                   dragOverColumn === "left" ? "border-blue-400 bg-blue-50 shadow-lg" : "border-blue-200 bg-blue-25"
                 }`}
                 onDragOver={(e) => handleColumnDragOver(e, "left")}
                 onDragLeave={handleColumnDragLeave}
                 onDrop={(e) => handleColumnDrop(e, "left")}
               >
-                <div className="text-center p-3 bg-blue-50 rounded-lg border-2 border-blue-200">
+                <div className="text-center p-3 bg-blue-50 rounded-lg border-2 border-blue-200 sticky top-0 z-10">
                   <h3 className="text-lg font-bold text-blue-700 mb-1">
-                    Đội A ({players.slice(0, 7).filter((p) => p.name.trim() !== "").length}/7)
+                    Đội A ({players.slice(0, 10).filter((p) => p.name.trim() !== "").length}/7)
                   </h3>
-                  <p className="text-sm text-blue-600">Cầu thủ ở cột này sẽ cùng đội nếu được fixed</p>
+                  <p className="text-sm text-blue-600">Kéo cầu thủ vào đây để thêm vào Đội A</p>
                 </div>
-                {players.slice(0, 7).map((player, index) => (
+                {players.slice(0, 10).map((player, index) => (
                   <div
                     key={index}
                     draggable
                     onDragStart={(e) => handleFormDragStart(e, index)}
                     onDragEnd={handleFormDragEnd}
-                    className={`flex gap-3 items-center p-4 rounded-lg border-2 transition-all cursor-move ${
-                      player.isFixed ? "bg-blue-50 border-blue-300 shadow-md" : "bg-green-50 border-green-200"
+                    className={`flex gap-3 items-center p-3 rounded-lg border-2 transition-all cursor-move ${
+                      player.name.trim()
+                        ? player.isFixed
+                          ? "bg-blue-50 border-blue-300 shadow-md"
+                          : "bg-green-50 border-green-200"
+                        : "bg-gray-50 border-gray-200 opacity-60"
                     } ${draggedFormPlayer === index ? "opacity-50 scale-95" : "hover:shadow-md"}`}
                   >
                     <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
@@ -742,7 +747,7 @@ export default function FootballLineup() {
                           <img
                             src={player.avatar || "/placeholder.svg"}
                             alt={`Avatar ${index + 1}`}
-                            className="w-12 h-12 rounded-full object-cover border-2 border-green-300"
+                            className="w-10 h-10 rounded-full object-cover border-2 border-green-300"
                           />
                           <button
                             onClick={() => removeAvatar(index)}
@@ -759,8 +764,8 @@ export default function FootballLineup() {
                             onChange={(e) => handleAvatarUpload(index, e)}
                             className="hidden"
                           />
-                          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed border-gray-400 hover:border-green-400 hover:bg-green-50 transition-colors">
-                            <Upload className="w-4 h-4 text-gray-500" />
+                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed border-gray-400 hover:border-green-400 hover:bg-green-50 transition-colors">
+                            <Upload className="w-3 h-3 text-gray-500" />
                           </div>
                         </label>
                       )}
@@ -770,25 +775,25 @@ export default function FootballLineup() {
                       placeholder={`Tên cầu thủ ${index + 1}`}
                       value={player.name}
                       onChange={(e) => updatePlayer(index, "name", e.target.value)}
-                      className="flex-1 border-green-300 focus:border-green-500"
+                      className="flex-1 border-green-300 focus:border-green-500 text-sm"
                     />
 
                     <Select
                       value={player.skill}
                       onValueChange={(value: SkillLevel) => updatePlayer(index, "skill", value)}
                     >
-                      <SelectTrigger className="w-24 border-green-300 focus:border-green-500">
+                      <SelectTrigger className="w-20 border-green-300 focus:border-green-500 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="excellent" className="text-green-600 font-medium">
-                          Đá Tốt
+                        <SelectItem value="excellent" className="text-green-600 font-medium text-xs">
+                          Tốt
                         </SelectItem>
-                        <SelectItem value="good" className="text-blue-600 font-medium">
-                          Đá Ổn
+                        <SelectItem value="good" className="text-blue-600 font-medium text-xs">
+                          Ổn
                         </SelectItem>
-                        <SelectItem value="average" className="text-orange-600 font-medium">
-                          Đá Tạm
+                        <SelectItem value="average" className="text-orange-600 font-medium text-xs">
+                          Tạm
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -802,7 +807,7 @@ export default function FootballLineup() {
                         className="border-2 border-blue-400 data-[state=checked]:bg-blue-500"
                       />
                       <label htmlFor={`fix-${index}`} className="text-xs font-medium cursor-pointer text-blue-600">
-                        Fixed
+                        Fix
                       </label>
                     </div>
                   </div>
@@ -811,29 +816,33 @@ export default function FootballLineup() {
 
               {/* Cột bên phải */}
               <div
-                className={`space-y-4 p-4 rounded-lg border-2 transition-all ${
+                className={`space-y-3 p-4 rounded-lg border-2 transition-all max-h-[600px] overflow-y-auto ${
                   dragOverColumn === "right" ? "border-red-400 bg-red-50 shadow-lg" : "border-red-200 bg-red-25"
                 }`}
                 onDragOver={(e) => handleColumnDragOver(e, "right")}
                 onDragLeave={handleColumnDragLeave}
                 onDrop={(e) => handleColumnDrop(e, "right")}
               >
-                <div className="text-center p-3 bg-red-50 rounded-lg border-2 border-red-200">
+                <div className="text-center p-3 bg-red-50 rounded-lg border-2 border-red-200 sticky top-0 z-10">
                   <h3 className="text-lg font-bold text-red-700 mb-1">
-                    Đội B ({players.slice(7, 14).filter((p) => p.name.trim() !== "").length}/7)
+                    Đội B ({players.slice(10, 20).filter((p) => p.name.trim() !== "").length}/7)
                   </h3>
-                  <p className="text-sm text-red-600">Cầu thủ ở cột này sẽ cùng đội nếu được fixed</p>
+                  <p className="text-sm text-red-600">Kéo cầu thủ vào đây để thêm vào Đội B</p>
                 </div>
-                {players.slice(7, 14).map((player, index) => {
-                  const actualIndex = index + 7
+                {players.slice(10, 20).map((player, index) => {
+                  const actualIndex = index + 10
                   return (
                     <div
                       key={actualIndex}
                       draggable
                       onDragStart={(e) => handleFormDragStart(e, actualIndex)}
                       onDragEnd={handleFormDragEnd}
-                      className={`flex gap-3 items-center p-4 rounded-lg border-2 transition-all cursor-move ${
-                        player.isFixed ? "bg-red-50 border-red-300 shadow-md" : "bg-green-50 border-green-200"
+                      className={`flex gap-3 items-center p-3 rounded-lg border-2 transition-all cursor-move ${
+                        player.name.trim()
+                          ? player.isFixed
+                            ? "bg-red-50 border-red-300 shadow-md"
+                            : "bg-green-50 border-green-200"
+                          : "bg-gray-50 border-gray-200 opacity-60"
                       } ${draggedFormPlayer === actualIndex ? "opacity-50 scale-95" : "hover:shadow-md"}`}
                     >
                       <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
@@ -847,7 +856,7 @@ export default function FootballLineup() {
                             <img
                               src={player.avatar || "/placeholder.svg"}
                               alt={`Avatar ${actualIndex + 1}`}
-                              className="w-12 h-12 rounded-full object-cover border-2 border-green-300"
+                              className="w-10 h-10 rounded-full object-cover border-2 border-green-300"
                             />
                             <button
                               onClick={() => removeAvatar(actualIndex)}
@@ -864,8 +873,8 @@ export default function FootballLineup() {
                               onChange={(e) => handleAvatarUpload(actualIndex, e)}
                               className="hidden"
                             />
-                            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed border-gray-400 hover:border-green-400 hover:bg-green-50 transition-colors">
-                              <Upload className="w-4 h-4 text-gray-500" />
+                            <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed border-gray-400 hover:border-green-400 hover:bg-green-50 transition-colors">
+                              <Upload className="w-3 h-3 text-gray-500" />
                             </div>
                           </label>
                         )}
@@ -875,25 +884,25 @@ export default function FootballLineup() {
                         placeholder={`Tên cầu thủ ${actualIndex + 1}`}
                         value={player.name}
                         onChange={(e) => updatePlayer(actualIndex, "name", e.target.value)}
-                        className="flex-1 border-green-300 focus:border-green-500"
+                        className="flex-1 border-green-300 focus:border-green-500 text-sm"
                       />
 
                       <Select
                         value={player.skill}
                         onValueChange={(value: SkillLevel) => updatePlayer(actualIndex, "skill", value)}
                       >
-                        <SelectTrigger className="w-24 border-green-300 focus:border-green-500">
+                        <SelectTrigger className="w-20 border-green-300 focus:border-green-500 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="excellent" className="text-green-600 font-medium">
-                            Đá Tốt
+                          <SelectItem value="excellent" className="text-green-600 font-medium text-xs">
+                            Tốt
                           </SelectItem>
-                          <SelectItem value="good" className="text-blue-600 font-medium">
-                            Đá Ổn
+                          <SelectItem value="good" className="text-blue-600 font-medium text-xs">
+                            Ổn
                           </SelectItem>
-                          <SelectItem value="average" className="text-orange-600 font-medium">
-                            Đá Tạm
+                          <SelectItem value="average" className="text-orange-600 font-medium text-xs">
+                            Tạm
                           </SelectItem>
                         </SelectContent>
                       </Select>
@@ -910,7 +919,7 @@ export default function FootballLineup() {
                           htmlFor={`fix-${actualIndex}`}
                           className="text-xs font-medium cursor-pointer text-red-600"
                         >
-                          Fixed
+                          Fix
                         </label>
                       </div>
                     </div>
@@ -940,7 +949,7 @@ export default function FootballLineup() {
             <div className="mt-6 text-center text-sm text-gray-600">
               <p>💡 Kéo thả cầu thủ giữa các cột để phân chia đội hình!</p>
               <p>⚖️ Đảm bảo mỗi đội có đúng 7 cầu thủ trước khi sắp xếp</p>
-              <p>📌 Sử dụng checkbox "Fixed" để cố định cầu thủ vào đội mong muốn</p>
+              <p>📌 Sử dụng checkbox "Fix" để cố định cầu thủ vào đội mong muốn</p>
               <p>📸 Click vào biểu tượng upload để thêm avatar cho từng cầu thủ</p>
               <p>🖱️ Sau khi sắp xếp, bạn có thể kéo thả cầu thủ để thay đổi vị trí!</p>
               <p>💾 Dữ liệu sẽ được tự động lưu và khôi phục khi bạn quay lại trang</p>
