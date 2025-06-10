@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Users, Shuffle, Edit3, Upload, X, Move, Camera } from "lucide-react"
 import DataStatus from "@/components/data-status"
 import html2canvas from "html2canvas"
@@ -18,6 +19,7 @@ interface Player {
   skill: SkillLevel
   avatar?: string
   position?: { x: number; y: number }
+  isFixed?: boolean
 }
 
 interface Team {
@@ -65,7 +67,7 @@ const defaultPositions = {
 
 export default function FootballLineup() {
   const [players, setPlayers] = useState<Player[]>(
-    Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "good" as SkillLevel })),
+    Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "good" as SkillLevel, isFixed: false })),
   )
   const [teams, setTeams] = useState<Team[]>([])
   const [showLineup, setShowLineup] = useState(false)
@@ -109,7 +111,7 @@ export default function FootballLineup() {
   const clearLocalStorage = () => {
     try {
       localStorage.removeItem(STORAGE_KEY)
-      setPlayers(Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "good" as SkillLevel })))
+      setPlayers(Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "good" as SkillLevel, isFixed: false })))
     } catch (error) {
       console.error("Không thể xóa dữ liệu:", error)
     }
@@ -119,7 +121,12 @@ export default function FootballLineup() {
   useEffect(() => {
     const savedData = loadFromLocalStorage()
     if (savedData?.players && savedData.players.length === 14) {
-      setPlayers(savedData.players)
+      // Ensure backward compatibility by adding isFixed property if it doesn't exist
+      const playersWithFixed = savedData.players.map((player) => ({
+        ...player,
+        isFixed: player.isFixed || false,
+      }))
+      setPlayers(playersWithFixed)
       if (savedData.teamNames) {
         setTeamNames(savedData.teamNames)
       }
@@ -135,7 +142,7 @@ export default function FootballLineup() {
     }
   }, [players, teamNames])
 
-  const updatePlayer = (index: number, field: keyof Player, value: string) => {
+  const updatePlayer = (index: number, field: keyof Player, value: string | boolean) => {
     const newPlayers = [...players]
     newPlayers[index] = { ...newPlayers[index], [field]: value }
     setPlayers(newPlayers)
@@ -167,23 +174,48 @@ export default function FootballLineup() {
       return
     }
 
-    // Sắp xếp cầu thủ theo trình độ giảm dần
-    const sortedPlayers = [...validPlayers].sort((a, b) => skillValues[b.skill] - skillValues[a.skill])
-
     const team1: Player[] = []
     const team2: Player[] = []
     let team1Skill = 0
     let team2Skill = 0
 
-    // Phân chia cầu thủ để cân bằng trình độ
-    sortedPlayers.forEach((player, index) => {
+    // Bước 1: Xử lý các cầu thủ được fix trước
+    validPlayers.forEach((player, originalIndex) => {
+      if (player.isFixed) {
+        // Cầu thủ ở vị trí lẻ (1,3,5,7,9,11,13) -> đội 1 (xanh)
+        // Cầu thủ ở vị trí chẵn (2,4,6,8,10,12,14) -> đội 2 (đỏ)
+        const playerPosition = players.findIndex((p) => p === player)
+        const isOddPosition = (playerPosition + 1) % 2 === 1
+
+        if (isOddPosition && team1.length < 7) {
+          team1.push({
+            ...player,
+            position: defaultPositions.team1[team1.length],
+          })
+          team1Skill += skillValues[player.skill]
+        } else if (!isOddPosition && team2.length < 7) {
+          team2.push({
+            ...player,
+            position: defaultPositions.team2[team2.length],
+          })
+          team2Skill += skillValues[player.skill]
+        }
+      }
+    })
+
+    // Bước 2: Sắp xếp các cầu thủ không được fix
+    const unFixedPlayers = validPlayers.filter((player) => !player.isFixed)
+    const sortedUnFixedPlayers = [...unFixedPlayers].sort((a, b) => skillValues[b.skill] - skillValues[a.skill])
+
+    // Bước 3: Phân chia các cầu thủ còn lại để cân bằng trình độ
+    sortedUnFixedPlayers.forEach((player) => {
       if (team1.length < 7 && (team2.length === 7 || team1Skill <= team2Skill)) {
         team1.push({
           ...player,
           position: defaultPositions.team1[team1.length],
         })
         team1Skill += skillValues[player.skill]
-      } else {
+      } else if (team2.length < 7) {
         team2.push({
           ...player,
           position: defaultPositions.team2[team2.length],
@@ -191,6 +223,12 @@ export default function FootballLineup() {
         team2Skill += skillValues[player.skill]
       }
     })
+
+    // Kiểm tra nếu không đủ cầu thủ cho mỗi đội
+    if (team1.length !== 7 || team2.length !== 7) {
+      alert("Không thể sắp xếp đội do số lượng cầu thủ được fix không phù hợp!")
+      return
+    }
 
     setTeams([
       { name: teamNames.team1, players: team1, totalSkill: team1Skill },
@@ -586,71 +624,112 @@ export default function FootballLineup() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 bg-white">
+            <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="text-sm font-semibold text-blue-800 mb-2">📌 Cố định cầu thủ vào đội:</h3>
+              <p className="text-xs text-blue-600">
+                • Vị trí lẻ (1,3,5,7,9,11,13): Có thể cố định vào{" "}
+                <span className="font-bold text-blue-700">Đội Xanh</span>
+              </p>
+              <p className="text-xs text-blue-600">
+                • Vị trí chẵn (2,4,6,8,10,12,14): Có thể cố định vào{" "}
+                <span className="font-bold text-red-700">Đội Đỏ</span>
+              </p>
+              <p className="text-xs text-blue-600">
+                • Những cầu thủ không được cố định sẽ được sắp xếp tự động để cân bằng đội
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-              {players.map((player, index) => (
-                <div key={index} className="flex gap-3 items-center p-4 bg-green-50 rounded-lg border border-green-200">
-                  <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                    {index + 1}
-                  </div>
+              {players.map((player, index) => {
+                const isOddPosition = (index + 1) % 2 === 1
+                const targetTeam = isOddPosition ? "Đội Xanh" : "Đội Đỏ"
+                const targetColor = isOddPosition ? "blue" : "red"
 
-                  {/* Avatar section */}
-                  <div className="flex-shrink-0">
-                    {player.avatar ? (
-                      <div className="relative">
-                        <img
-                          src={player.avatar || "/placeholder.svg"}
-                          alt={`Avatar ${index + 1}`}
-                          className="w-12 h-12 rounded-full object-cover border-2 border-green-300"
-                        />
-                        <button
-                          onClick={() => removeAvatar(index)}
-                          className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
-                        >
-                          <X className="w-2 h-2" />
-                        </button>
-                      </div>
-                    ) : (
-                      <label className="cursor-pointer">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleAvatarUpload(index, e)}
-                          className="hidden"
-                        />
-                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed border-gray-400 hover:border-green-400 hover:bg-green-50 transition-colors">
-                          <Upload className="w-4 h-4 text-gray-500" />
-                        </div>
-                      </label>
-                    )}
-                  </div>
-
-                  <Input
-                    placeholder={`Tên cầu thủ ${index + 1}`}
-                    value={player.name}
-                    onChange={(e) => updatePlayer(index, "name", e.target.value)}
-                    className="flex-1 border-green-300 focus:border-green-500"
-                  />
-                  <Select
-                    value={player.skill}
-                    onValueChange={(value: SkillLevel) => updatePlayer(index, "skill", value)}
+                return (
+                  <div
+                    key={index}
+                    className="flex gap-3 items-center p-4 bg-green-50 rounded-lg border border-green-200"
                   >
-                    <SelectTrigger className="w-32 border-green-300 focus:border-green-500">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="excellent" className="text-green-600 font-medium">
-                        Đá Tốt
-                      </SelectItem>
-                      <SelectItem value="good" className="text-blue-600 font-medium">
-                        Đá Ổn
-                      </SelectItem>
-                      <SelectItem value="average" className="text-orange-600 font-medium">
-                        Đá Tạm
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
+                    <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                      {index + 1}
+                    </div>
+
+                    {/* Avatar section */}
+                    <div className="flex-shrink-0">
+                      {player.avatar ? (
+                        <div className="relative">
+                          <img
+                            src={player.avatar || "/placeholder.svg"}
+                            alt={`Avatar ${index + 1}`}
+                            className="w-12 h-12 rounded-full object-cover border-2 border-green-300"
+                          />
+                          <button
+                            onClick={() => removeAvatar(index)}
+                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                          >
+                            <X className="w-2 h-2" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleAvatarUpload(index, e)}
+                            className="hidden"
+                          />
+                          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed border-gray-400 hover:border-green-400 hover:bg-green-50 transition-colors">
+                            <Upload className="w-4 h-4 text-gray-500" />
+                          </div>
+                        </label>
+                      )}
+                    </div>
+
+                    <Input
+                      placeholder={`Tên cầu thủ ${index + 1}`}
+                      value={player.name}
+                      onChange={(e) => updatePlayer(index, "name", e.target.value)}
+                      className="flex-1 border-green-300 focus:border-green-500"
+                    />
+
+                    <Select
+                      value={player.skill}
+                      onValueChange={(value: SkillLevel) => updatePlayer(index, "skill", value)}
+                    >
+                      <SelectTrigger className="w-32 border-green-300 focus:border-green-500">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="excellent" className="text-green-600 font-medium">
+                          Đá Tốt
+                        </SelectItem>
+                        <SelectItem value="good" className="text-blue-600 font-medium">
+                          Đá Ổn
+                        </SelectItem>
+                        <SelectItem value="average" className="text-orange-600 font-medium">
+                          Đá Tạm
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+
+                    {/* Checkbox cố định đội */}
+                    <div className="flex flex-col items-center gap-1">
+                      <Checkbox
+                        id={`fix-${index}`}
+                        checked={player.isFixed || false}
+                        onCheckedChange={(checked) => updatePlayer(index, "isFixed", checked as boolean)}
+                        className={`border-2 ${targetColor === "blue" ? "border-blue-400 data-[state=checked]:bg-blue-500" : "border-red-400 data-[state=checked]:bg-red-500"}`}
+                      />
+                      <label
+                        htmlFor={`fix-${index}`}
+                        className={`text-xs font-medium cursor-pointer ${targetColor === "blue" ? "text-blue-600" : "text-red-600"}`}
+                      >
+                        {targetTeam}
+                      </label>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
             <div className="text-center">
@@ -673,6 +752,7 @@ export default function FootballLineup() {
 
             <div className="mt-6 text-center text-sm text-gray-600">
               <p>💡 Hệ thống sẽ tự động cân bằng trình độ giữa hai đội để trận đấu thêm hấp dẫn!</p>
+              <p>📌 Sử dụng checkbox để cố định cầu thủ vào đội mong muốn trước khi sắp xếp</p>
               <p>📸 Click vào biểu tượng upload để thêm avatar cho từng cầu thủ</p>
               <p>🖱️ Sau khi sắp xếp, bạn có thể kéo thả cầu thủ để thay đổi vị trí!</p>
               <p>💾 Dữ liệu sẽ được tự động lưu và khôi phục khi bạn quay lại trang</p>
