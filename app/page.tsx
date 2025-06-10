@@ -11,7 +11,7 @@ import { Users, Shuffle, Edit3, Upload, X, Move, Camera } from "lucide-react"
 import DataStatus from "@/components/data-status"
 import html2canvas from "html2canvas"
 
-type SkillLevel = "good" | "average" | "weak"
+type SkillLevel = "excellent" | "good" | "average"
 
 interface Player {
   name: string
@@ -27,15 +27,15 @@ interface Team {
 }
 
 const skillValues = {
+  excellent: 5,
   good: 3,
-  average: 2,
-  weak: 1,
+  average: 1,
 }
 
 const skillLabels = {
-  good: "Tốt",
-  average: "Trung bình",
-  weak: "Yếu",
+  excellent: "Đá Tốt",
+  good: "Đá Ổn",
+  average: "Đá Tạm",
 }
 
 // Thêm sau các constant definitions, trước component function
@@ -65,7 +65,7 @@ const defaultPositions = {
 
 export default function FootballLineup() {
   const [players, setPlayers] = useState<Player[]>(
-    Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "average" as SkillLevel })),
+    Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "good" as SkillLevel })),
   )
   const [teams, setTeams] = useState<Team[]>([])
   const [showLineup, setShowLineup] = useState(false)
@@ -109,7 +109,7 @@ export default function FootballLineup() {
   const clearLocalStorage = () => {
     try {
       localStorage.removeItem(STORAGE_KEY)
-      setPlayers(Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "average" as SkillLevel })))
+      setPlayers(Array.from({ length: 14 }, (_, i) => ({ name: "", skill: "good" as SkillLevel })))
     } catch (error) {
       console.error("Không thể xóa dữ liệu:", error)
     }
@@ -638,14 +638,14 @@ export default function FootballLineup() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="good" className="text-green-600 font-medium">
-                        ⭐⭐⭐ Tốt
+                      <SelectItem value="excellent" className="text-green-600 font-medium">
+                        ⚽⚽⚽ Đá Tốt (5 điểm)
                       </SelectItem>
-                      <SelectItem value="average" className="text-yellow-600 font-medium">
-                        ⭐⭐ Trung bình
+                      <SelectItem value="good" className="text-blue-600 font-medium">
+                        ⚽⚽ Đá Ổn (3 điểm)
                       </SelectItem>
-                      <SelectItem value="weak" className="text-orange-600 font-medium">
-                        ⭐ Yếu
+                      <SelectItem value="average" className="text-orange-600 font-medium">
+                        ⚽ Đá Tạm (1 điểm)
                       </SelectItem>
                     </SelectContent>
                   </Select>
