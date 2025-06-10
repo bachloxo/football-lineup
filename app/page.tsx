@@ -455,11 +455,6 @@ export default function FootballLineup() {
           {player.name}
         </div>
 
-        {/* Player name tooltip for hover (export-hide) */}
-        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs font-medium text-white bg-black bg-opacity-70 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap export-hide">
-          {player.name}
-        </div>
-
         {/* Edit and move icons */}
         <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity export-hide">
           <Edit3
