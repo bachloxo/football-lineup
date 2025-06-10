@@ -639,13 +639,13 @@ export default function FootballLineup() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="excellent" className="text-green-600 font-medium">
-                        ⚽⚽⚽ Đá Tốt (5 điểm)
+                        Đá Tốt
                       </SelectItem>
                       <SelectItem value="good" className="text-blue-600 font-medium">
-                        ⚽⚽ Đá Ổn (3 điểm)
+                        Đá Ổn
                       </SelectItem>
                       <SelectItem value="average" className="text-orange-600 font-medium">
-                        ⚽ Đá Tạm (1 điểm)
+                        Đá Tạm
                       </SelectItem>
                     </SelectContent>
                   </Select>
