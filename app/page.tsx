@@ -624,31 +624,19 @@ export default function FootballLineup() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 bg-white">
-            <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 className="text-sm font-semibold text-blue-800 mb-2">📌 Cố định cầu thủ vào đội:</h3>
-              <p className="text-xs text-blue-600">
-                • Vị trí lẻ (1,3,5,7,9,11,13): Có thể cố định vào{" "}
-                <span className="font-bold text-blue-700">Đội Xanh</span>
-              </p>
-              <p className="text-xs text-blue-600">
-                • Vị trí chẵn (2,4,6,8,10,12,14): Có thể cố định vào{" "}
-                <span className="font-bold text-red-700">Đội Đỏ</span>
-              </p>
-              <p className="text-xs text-blue-600">
-                • Những cầu thủ không được cố định sẽ được sắp xếp tự động để cân bằng đội
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-              {players.map((player, index) => {
-                const isOddPosition = (index + 1) % 2 === 1
-                const targetTeam = isOddPosition ? "Đội Xanh" : "Đội Đỏ"
-                const targetColor = isOddPosition ? "blue" : "red"
-
-                return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {/* Cột bên trái */}
+              <div className="space-y-4">
+                <div className="text-center p-3 bg-blue-50 rounded-lg border-2 border-blue-200">
+                  <h3 className="text-lg font-bold text-blue-700 mb-1">Đội A</h3>
+                  <p className="text-sm text-blue-600">Cầu thủ ở cột này sẽ cùng đội nếu được fixed</p>
+                </div>
+                {players.slice(0, 7).map((player, index) => (
                   <div
                     key={index}
-                    className="flex gap-3 items-center p-4 bg-green-50 rounded-lg border border-green-200"
+                    className={`flex gap-3 items-center p-4 rounded-lg border-2 transition-all ${
+                      player.isFixed ? "bg-blue-50 border-blue-300 shadow-md" : "bg-green-50 border-green-200"
+                    }`}
                   >
                     <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
                       {index + 1}
@@ -696,7 +684,7 @@ export default function FootballLineup() {
                       value={player.skill}
                       onValueChange={(value: SkillLevel) => updatePlayer(index, "skill", value)}
                     >
-                      <SelectTrigger className="w-32 border-green-300 focus:border-green-500">
+                      <SelectTrigger className="w-24 border-green-300 focus:border-green-500">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -712,24 +700,118 @@ export default function FootballLineup() {
                       </SelectContent>
                     </Select>
 
-                    {/* Checkbox cố định đội */}
+                    {/* Checkbox fixed */}
                     <div className="flex flex-col items-center gap-1">
                       <Checkbox
                         id={`fix-${index}`}
                         checked={player.isFixed || false}
                         onCheckedChange={(checked) => updatePlayer(index, "isFixed", checked as boolean)}
-                        className={`border-2 ${targetColor === "blue" ? "border-blue-400 data-[state=checked]:bg-blue-500" : "border-red-400 data-[state=checked]:bg-red-500"}`}
+                        className="border-2 border-blue-400 data-[state=checked]:bg-blue-500"
                       />
-                      <label
-                        htmlFor={`fix-${index}`}
-                        className={`text-xs font-medium cursor-pointer ${targetColor === "blue" ? "text-blue-600" : "text-red-600"}`}
-                      >
-                        {targetTeam}
+                      <label htmlFor={`fix-${index}`} className="text-xs font-medium cursor-pointer text-blue-600">
+                        Fixed
                       </label>
                     </div>
                   </div>
-                )
-              })}
+                ))}
+              </div>
+
+              {/* Cột bên phải */}
+              <div className="space-y-4">
+                <div className="text-center p-3 bg-red-50 rounded-lg border-2 border-red-200">
+                  <h3 className="text-lg font-bold text-red-700 mb-1">Đội B</h3>
+                  <p className="text-sm text-red-600">Cầu thủ ở cột này sẽ cùng đội nếu được fixed</p>
+                </div>
+                {players.slice(7, 14).map((player, index) => {
+                  const actualIndex = index + 7
+                  return (
+                    <div
+                      key={actualIndex}
+                      className={`flex gap-3 items-center p-4 rounded-lg border-2 transition-all ${
+                        player.isFixed ? "bg-red-50 border-red-300 shadow-md" : "bg-green-50 border-green-200"
+                      }`}
+                    >
+                      <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        {actualIndex + 1}
+                      </div>
+
+                      {/* Avatar section */}
+                      <div className="flex-shrink-0">
+                        {player.avatar ? (
+                          <div className="relative">
+                            <img
+                              src={player.avatar || "/placeholder.svg"}
+                              alt={`Avatar ${actualIndex + 1}`}
+                              className="w-12 h-12 rounded-full object-cover border-2 border-green-300"
+                            />
+                            <button
+                              onClick={() => removeAvatar(actualIndex)}
+                              className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                            >
+                              <X className="w-2 h-2" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="cursor-pointer">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={(e) => handleAvatarUpload(actualIndex, e)}
+                              className="hidden"
+                            />
+                            <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center border-2 border-dashed border-gray-400 hover:border-green-400 hover:bg-green-50 transition-colors">
+                              <Upload className="w-4 h-4 text-gray-500" />
+                            </div>
+                          </label>
+                        )}
+                      </div>
+
+                      <Input
+                        placeholder={`Tên cầu thủ ${actualIndex + 1}`}
+                        value={player.name}
+                        onChange={(e) => updatePlayer(actualIndex, "name", e.target.value)}
+                        className="flex-1 border-green-300 focus:border-green-500"
+                      />
+
+                      <Select
+                        value={player.skill}
+                        onValueChange={(value: SkillLevel) => updatePlayer(actualIndex, "skill", value)}
+                      >
+                        <SelectTrigger className="w-24 border-green-300 focus:border-green-500">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="excellent" className="text-green-600 font-medium">
+                            Đá Tốt
+                          </SelectItem>
+                          <SelectItem value="good" className="text-blue-600 font-medium">
+                            Đá Ổn
+                          </SelectItem>
+                          <SelectItem value="average" className="text-orange-600 font-medium">
+                            Đá Tạm
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {/* Checkbox fixed */}
+                      <div className="flex flex-col items-center gap-1">
+                        <Checkbox
+                          id={`fix-${actualIndex}`}
+                          checked={player.isFixed || false}
+                          onCheckedChange={(checked) => updatePlayer(actualIndex, "isFixed", checked as boolean)}
+                          className="border-2 border-red-400 data-[state=checked]:bg-red-500"
+                        />
+                        <label
+                          htmlFor={`fix-${actualIndex}`}
+                          className="text-xs font-medium cursor-pointer text-red-600"
+                        >
+                          Fixed
+                        </label>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             <div className="text-center">
@@ -752,7 +834,7 @@ export default function FootballLineup() {
 
             <div className="mt-6 text-center text-sm text-gray-600">
               <p>💡 Hệ thống sẽ tự động cân bằng trình độ giữa hai đội để trận đấu thêm hấp dẫn!</p>
-              <p>📌 Sử dụng checkbox để cố định cầu thủ vào đội mong muốn trước khi sắp xếp</p>
+              <p>📌 Sử dụng checkbox "Fixed" để cố định cầu thủ vào đội mong muốn trước khi sắp xếp</p>
               <p>📸 Click vào biểu tượng upload để thêm avatar cho từng cầu thủ</p>
               <p>🖱️ Sau khi sắp xếp, bạn có thể kéo thả cầu thủ để thay đổi vị trí!</p>
               <p>💾 Dữ liệu sẽ được tự động lưu và khôi phục khi bạn quay lại trang</p>
