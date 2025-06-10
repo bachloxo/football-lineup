@@ -207,53 +207,58 @@ export default function FootballLineup() {
       return
     }
 
-    // Tìm vị trí trống trong cột đích
+    // Tìm vị trí đầu tiên trong cột đích để chèn vào
     let targetIndex = -1
     if (shouldMoveToLeftColumn) {
-      // Tìm vị trí trống trong cột trái (0-6)
+      // Tìm vị trí đầu tiên trong cột trái (0-6)
       for (let i = 0; i < 7; i++) {
         if (!players[i].name.trim()) {
           targetIndex = i
           break
         }
       }
-      // Nếu không có vị trí trống, tìm vị trí có thể swap
+      // Nếu không có vị trí trống, chèn vào cuối cột trái
       if (targetIndex === -1) {
-        for (let i = 0; i < 7; i++) {
-          if (i !== draggedIndex) {
-            targetIndex = i
-            break
-          }
-        }
+        targetIndex = 6
       }
     } else {
-      // Tìm vị trí trống trong cột phải (7-13)
+      // Tìm vị trí đầu tiên trong cột phải (7-13)
       for (let i = 7; i < 14; i++) {
         if (!players[i].name.trim()) {
           targetIndex = i
           break
         }
       }
-      // Nếu không có vị trí trống, tìm vị trí có thể swap
+      // Nếu không có vị trí trống, chèn vào cuối cột phải
       if (targetIndex === -1) {
-        for (let i = 7; i < 14; i++) {
-          if (i !== draggedIndex) {
-            targetIndex = i
-            break
-          }
-        }
+        targetIndex = 13
       }
     }
 
-    if (targetIndex !== -1) {
-      // Swap players
-      const newPlayers = [...players]
-      const temp = newPlayers[draggedIndex]
-      newPlayers[draggedIndex] = newPlayers[targetIndex]
-      newPlayers[targetIndex] = temp
-      setPlayers(newPlayers)
+    // Di chuyển player và dịch chuyển các player khác
+    const newPlayers = [...players]
+    const draggedPlayer = newPlayers[draggedIndex]
+
+    // Xóa player khỏi vị trí cũ
+    newPlayers[draggedIndex] = { name: "", skill: "good" as SkillLevel, isFixed: false }
+
+    // Dịch chuyển các player trong cột đích để tạo chỗ
+    if (shouldMoveToLeftColumn) {
+      // Dịch chuyển trong cột trái
+      for (let i = 6; i > targetIndex; i--) {
+        newPlayers[i] = newPlayers[i - 1]
+      }
+    } else {
+      // Dịch chuyển trong cột phải
+      for (let i = 13; i > targetIndex; i--) {
+        newPlayers[i] = newPlayers[i - 1]
+      }
     }
 
+    // Chèn player vào vị trí mới
+    newPlayers[targetIndex] = draggedPlayer
+
+    setPlayers(newPlayers)
     setDraggedFormPlayer(null)
     setDragOverColumn(null)
   }
@@ -265,59 +270,39 @@ export default function FootballLineup() {
       return
     }
 
+    // Đếm số lượng cầu thủ ở mỗi cột
+    const leftColumnPlayers = players.slice(0, 7).filter((p) => p.name.trim() !== "")
+    const rightColumnPlayers = players.slice(7, 14).filter((p) => p.name.trim() !== "")
+
+    if (leftColumnPlayers.length !== 7 || rightColumnPlayers.length !== 7) {
+      alert(
+        `Số lượng cầu thủ không cân bằng!\nĐội A: ${leftColumnPlayers.length} người\nĐội B: ${rightColumnPlayers.length} người\n\nVui lòng kéo thả để có đúng 7 người mỗi đội.`,
+      )
+      return
+    }
+
     const team1: Player[] = []
     const team2: Player[] = []
     let team1Skill = 0
     let team2Skill = 0
 
-    // Bước 1: Xử lý các cầu thủ được fix trước dựa trên vị trí hiện tại
-    players.forEach((player, index) => {
-      if (player.name.trim() && player.isFixed) {
-        // Cầu thủ ở cột trái (0-6) -> đội 1, cột phải (7-13) -> đội 2
-        const isInLeftColumn = index < 7
-
-        if (isInLeftColumn && team1.length < 7) {
-          team1.push({
-            ...player,
-            position: defaultPositions.team1[team1.length],
-          })
-          team1Skill += skillValues[player.skill]
-        } else if (!isInLeftColumn && team2.length < 7) {
-          team2.push({
-            ...player,
-            position: defaultPositions.team2[team2.length],
-          })
-          team2Skill += skillValues[player.skill]
-        }
-      }
+    // Xử lý cầu thủ từ cột trái (Đội A)
+    leftColumnPlayers.forEach((player, index) => {
+      team1.push({
+        ...player,
+        position: defaultPositions.team1[index],
+      })
+      team1Skill += skillValues[player.skill]
     })
 
-    // Bước 2: Sắp xếp các cầu thủ không được fix
-    const unFixedPlayers = players.filter((player, index) => player.name.trim() && !player.isFixed)
-    const sortedUnFixedPlayers = [...unFixedPlayers].sort((a, b) => skillValues[b.skill] - skillValues[a.skill])
-
-    // Bước 3: Phân chia các cầu thủ còn lại để cân bằng trình độ
-    sortedUnFixedPlayers.forEach((player) => {
-      if (team1.length < 7 && (team2.length === 7 || team1Skill <= team2Skill)) {
-        team1.push({
-          ...player,
-          position: defaultPositions.team1[team1.length],
-        })
-        team1Skill += skillValues[player.skill]
-      } else if (team2.length < 7) {
-        team2.push({
-          ...player,
-          position: defaultPositions.team2[team2.length],
-        })
-        team2Skill += skillValues[player.skill]
-      }
+    // Xử lý cầu thủ từ cột phải (Đội B)
+    rightColumnPlayers.forEach((player, index) => {
+      team2.push({
+        ...player,
+        position: defaultPositions.team2[index],
+      })
+      team2Skill += skillValues[player.skill]
     })
-
-    // Kiểm tra nếu không đủ cầu thủ cho mỗi đội
-    if (team1.length !== 7 || team2.length !== 7) {
-      alert("Không thể sắp xếp đội do số lượng cầu thủ được fix không phù hợp!")
-      return
-    }
 
     setTeams([
       { name: teamNames.team1, players: team1, totalSkill: team1Skill },
@@ -731,7 +716,9 @@ export default function FootballLineup() {
                 onDrop={(e) => handleColumnDrop(e, "left")}
               >
                 <div className="text-center p-3 bg-blue-50 rounded-lg border-2 border-blue-200">
-                  <h3 className="text-lg font-bold text-blue-700 mb-1">Đội A</h3>
+                  <h3 className="text-lg font-bold text-blue-700 mb-1">
+                    Đội A ({players.slice(0, 7).filter((p) => p.name.trim() !== "").length}/7)
+                  </h3>
                   <p className="text-sm text-blue-600">Cầu thủ ở cột này sẽ cùng đội nếu được fixed</p>
                 </div>
                 {players.slice(0, 7).map((player, index) => (
@@ -832,7 +819,9 @@ export default function FootballLineup() {
                 onDrop={(e) => handleColumnDrop(e, "right")}
               >
                 <div className="text-center p-3 bg-red-50 rounded-lg border-2 border-red-200">
-                  <h3 className="text-lg font-bold text-red-700 mb-1">Đội B</h3>
+                  <h3 className="text-lg font-bold text-red-700 mb-1">
+                    Đội B ({players.slice(7, 14).filter((p) => p.name.trim() !== "").length}/7)
+                  </h3>
                   <p className="text-sm text-red-600">Cầu thủ ở cột này sẽ cùng đội nếu được fixed</p>
                 </div>
                 {players.slice(7, 14).map((player, index) => {
@@ -949,9 +938,9 @@ export default function FootballLineup() {
             />
 
             <div className="mt-6 text-center text-sm text-gray-600">
-              <p>💡 Hệ thống sẽ tự động cân bằng trình độ giữa hai đội để trận đấu thêm hấp dẫn!</p>
-              <p>🔄 Kéo thả cầu thủ giữa các cột để chuyển đội trước khi sắp xếp</p>
-              <p>📌 Sử dụng checkbox "Fixed" để cố định cầu thủ vào đội mong muốn trước khi sắp xếp</p>
+              <p>💡 Kéo thả cầu thủ giữa các cột để phân chia đội hình!</p>
+              <p>⚖️ Đảm bảo mỗi đội có đúng 7 cầu thủ trước khi sắp xếp</p>
+              <p>📌 Sử dụng checkbox "Fixed" để cố định cầu thủ vào đội mong muốn</p>
               <p>📸 Click vào biểu tượng upload để thêm avatar cho từng cầu thủ</p>
               <p>🖱️ Sau khi sắp xếp, bạn có thể kéo thả cầu thủ để thay đổi vị trí!</p>
               <p>💾 Dữ liệu sẽ được tự động lưu và khôi phục khi bạn quay lại trang</p>
