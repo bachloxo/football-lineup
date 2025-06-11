@@ -249,53 +249,30 @@ export default function FootballLineup() {
       return
     }
 
-    // Tìm vị trí để swap trong cột đích
-    let targetIndex = -1
+    const newPlayers = [...players]
+    const draggedPlayer = newPlayers[draggedIndex]
+
+    // Xóa cầu thủ khỏi vị trí cũ
+    newPlayers.splice(draggedIndex, 1)
+
+    // Tính toán vị trí chèn mới - LUÔN CHÈN VÀO CUỐI CỘT ĐÍCH
+    let insertIndex: number
     if (shouldMoveToLeftColumn) {
-      // Tìm vị trí trống hoặc vị trí cuối trong cột trái
-      for (let i = 0; i < leftCount; i++) {
-        if (!players[i].name.trim()) {
-          targetIndex = i
-          break
-        }
-      }
-      // Nếu không có vị trí trống, tìm vị trí có thể swap
-      if (targetIndex === -1) {
-        for (let i = 0; i < leftCount; i++) {
-          if (players[i].name.trim()) {
-            targetIndex = i
-            break
-          }
-        }
-      }
+      // Chèn vào cuối cột trái
+      // Tìm vị trí cuối cùng của cột trái sau khi đã xóa player
+      const currentLeftCount = newPlayers.filter(
+        (_, idx) => idx < leftCount - (draggedIndex < leftCount ? 1 : 0),
+      ).length
+      insertIndex = currentLeftCount
     } else {
-      // Tìm vị trí trống hoặc vị trí cuối trong cột phải
-      for (let i = leftCount; i < players.length; i++) {
-        if (!players[i].name.trim()) {
-          targetIndex = i
-          break
-        }
-      }
-      // Nếu không có vị trí trống, tìm vị trí có thể swap
-      if (targetIndex === -1) {
-        for (let i = leftCount; i < players.length; i++) {
-          if (players[i].name.trim()) {
-            targetIndex = i
-            break
-          }
-        }
-      }
+      // Chèn vào cuối cột phải (cuối array)
+      insertIndex = newPlayers.length
     }
 
-    if (targetIndex !== -1) {
-      // Swap players
-      const newPlayers = [...players]
-      const temp = newPlayers[targetIndex]
-      newPlayers[targetIndex] = newPlayers[draggedIndex]
-      newPlayers[draggedIndex] = temp
-      setPlayers(newPlayers)
-    }
+    // Chèn cầu thủ vào vị trí mới
+    newPlayers.splice(insertIndex, 0, draggedPlayer)
 
+    setPlayers(newPlayers)
     setDraggedFormPlayer(null)
     setDragOverColumn(null)
   }
@@ -777,7 +754,7 @@ export default function FootballLineup() {
             <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
               <p className="text-sm text-yellow-800 text-center">
                 <ArrowLeftRight className="w-4 h-4 inline mr-1" />
-                <strong>Kéo thả cầu thủ</strong> giữa các cột để chuyển đội. Cần đúng 7 người mỗi đội để sắp xếp.
+                <strong>Kéo thả cầu thủ</strong> giữa các cột để chuyển đội. Số lượng có thể không cân bằng.
               </p>
             </div>
 
