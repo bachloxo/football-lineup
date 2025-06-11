@@ -6,7 +6,7 @@ import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Users, Shuffle, Edit3, Upload, X, Move, Camera, ArrowLeftRight } from "lucide-react"
 import DataStatus from "@/components/data-status"
@@ -754,12 +754,6 @@ export default function FootballLineup() {
         </div>
 
         <Card className="max-w-6xl mx-auto shadow-2xl border-0">
-          <CardHeader className="bg-white">
-            <CardTitle className="text-2xl text-center text-green-700 flex items-center justify-center gap-2">
-              <Users className="w-6 h-6" />
-              Nhập Thông Tin Cầu Thủ
-            </CardTitle>
-          </CardHeader>
           <CardContent className="p-6 bg-white">
             <div className="mb-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
               <p className="text-sm text-yellow-800 text-center">
@@ -783,7 +777,6 @@ export default function FootballLineup() {
                     Đội A ({players.slice(0, Math.ceil(players.length / 2)).filter((p) => p.name.trim() !== "").length}/
                     {Math.ceil(players.length / 2)})
                   </h3>
-                  <p className="text-sm text-blue-600 mb-2">Kéo cầu thủ vào đây để thêm vào Đội A</p>
                   <div className="flex gap-2 justify-center">
                     <Button
                       onClick={() => addPlayer("left")}
@@ -885,7 +878,11 @@ export default function FootballLineup() {
 
                     {/* Remove button */}
                     <button
-                      onClick={() => removePlayer(index)}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        removePlayer(index) // Sử dụng index thực tế của cột trái
+                      }}
                       className="flex-shrink-0 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                       disabled={players.length <= 2}
                     >
@@ -909,7 +906,6 @@ export default function FootballLineup() {
                     Đội B ({players.slice(Math.ceil(players.length / 2)).filter((p) => p.name.trim() !== "").length}/
                     {Math.floor(players.length / 2)})
                   </h3>
-                  <p className="text-sm text-red-600 mb-2">Kéo cầu thủ vào đây để thêm vào Đội B</p>
                   <div className="flex gap-2 justify-center">
                     <Button
                       onClick={() => addPlayer("right")}
@@ -1016,7 +1012,11 @@ export default function FootballLineup() {
 
                       {/* Remove button */}
                       <button
-                        onClick={() => removePlayer(actualIndex)}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          removePlayer(actualIndex) // Sử dụng actualIndex đã tính toán đúng
+                        }}
                         className="flex-shrink-0 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
                         disabled={players.length <= 2}
                       >
@@ -1045,15 +1045,6 @@ export default function FootballLineup() {
               onExportData={handleExportData}
               onClearData={handleClearAllData}
             />
-
-            <div className="mt-6 text-center text-sm text-gray-600">
-              <p>💡 Kéo thả cầu thủ giữa các cột để phân chia đội hình!</p>
-              <p>⚖️ Đảm bảo mỗi đội có đúng 7 cầu thủ trước khi sắp xếp</p>
-              <p>📌 Sử dụng checkbox "Fix" để cố định cầu thủ vào đội mong muốn</p>
-              <p>📸 Click vào biểu tượng upload để thêm avatar cho từng cầu thủ</p>
-              <p>🖱️ Sau khi sắp xếp, bạn có thể kéo thả cầu thủ để thay đổi vị trí!</p>
-              <p>💾 Dữ liệu sẽ được tự động lưu và khôi phục khi bạn quay lại trang</p>
-            </div>
           </CardContent>
         </Card>
       </div>
