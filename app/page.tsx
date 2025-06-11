@@ -249,31 +249,50 @@ export default function FootballLineup() {
       return
     }
 
-    // Tìm vị trí trống đầu tiên trong cột đích
+    // Tìm vị trí để swap trong cột đích
     let targetIndex = -1
     if (shouldMoveToLeftColumn) {
-      // Tìm vị trí trống trong cột trái (0 đến leftCount-1)
+      // Tìm vị trí trống hoặc vị trí cuối trong cột trái
       for (let i = 0; i < leftCount; i++) {
         if (!players[i].name.trim()) {
           targetIndex = i
           break
         }
       }
+      // Nếu không có vị trí trống, tìm vị trí có thể swap
+      if (targetIndex === -1) {
+        for (let i = 0; i < leftCount; i++) {
+          if (players[i].name.trim()) {
+            targetIndex = i
+            break
+          }
+        }
+      }
     } else {
-      // Tìm vị trí trống trong cột phải (leftCount đến end)
+      // Tìm vị trí trống hoặc vị trí cuối trong cột phải
       for (let i = leftCount; i < players.length; i++) {
         if (!players[i].name.trim()) {
           targetIndex = i
           break
         }
       }
+      // Nếu không có vị trí trống, tìm vị trí có thể swap
+      if (targetIndex === -1) {
+        for (let i = leftCount; i < players.length; i++) {
+          if (players[i].name.trim()) {
+            targetIndex = i
+            break
+          }
+        }
+      }
     }
 
     if (targetIndex !== -1) {
-      // Di chuyển player sang vị trí trống
+      // Swap players
       const newPlayers = [...players]
-      newPlayers[targetIndex] = { ...newPlayers[draggedIndex] }
-      newPlayers[draggedIndex] = { name: "", skill: "good" as SkillLevel, isFixed: false }
+      const temp = newPlayers[targetIndex]
+      newPlayers[targetIndex] = newPlayers[draggedIndex]
+      newPlayers[draggedIndex] = temp
       setPlayers(newPlayers)
     }
 
